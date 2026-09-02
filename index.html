@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>FANTANON</title>
+<link rel="icon" href="data:,">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<style>
+  html, body { margin: 0; padding: 0; background: #071811; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyAENHTq16yIEio9u5wvY-nEGPfxcl_AycU",
+    authDomain: "fantanon-2026.firebaseapp.com",
+    projectId: "fantanon-2026",
+    storageBucket: "fantanon-2026.firebasestorage.app",
+    messagingSenderId: "934481430454",
+    appId: "1:934481430454:web:9c70e92d7dc01a6ec8e317"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+</script>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+const TEAMS = [
+  { id: "comolli", name: "COMOLLI O SENZA?", manager: "Maggio" },
+  { id: "zioorso", name: "ZIO ORSO", manager: "Baldo" },
+  { id: "pochi", name: "POCHI MA BONNY", manager: "Fava" },
+  { id: "heinekean", name: "HEINEKEAN", manager: "Cortese" },
+  { id: "bloccozeta", name: "BLOCCO ZETA", manager: "Zorzi" },
+  { id: "labanda", name: "LA BANDA", manager: "Nicoletti" },
+  { id: "trenino", name: "TRENINO TOMAS", manager: "Trento" },
+  { id: "fcmaiungol", name: "FC MAI UN GOL", manager: "One" },
+  { id: "vardy", name: "VARDY IS ON FIRE", manager: "Siro (tu)" },
+  { id: "cortomusah", name: "CORTO MUSAH", manager: "Tardo" },
+];
+
+const ROLES = [
+  { code: "P", label: "Portiere", color: "bg-amber-400 text-emerald-950" },
+  { code: "D", label: "Difensore", color: "bg-sky-400 text-emerald-950" },
+  { code: "C", label: "Centrocampista", color: "bg-emerald-400 text-emerald-950" },
+  { code: "A", label: "Attaccante", color: "bg-red-400 text-emerald-950" },
+];
+
+const roleColor = (code) => ROLES.find((r) => r.code === code)?.color || "bg-emerald-700 text-emerald-100";
+
+const initials = (name) =>
+  name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+
+const CREST_HUES = ["#d4af37", "#6fb3d9", "#e07a5f", "#81b29a", "#f2cc8f", "#9d8df1", "#f28482", "#84a59d", "#f6bd60", "#a8dadc"];
+
+// Listone ufficiale 2026/27 — quotazioni reali (fonte: dati aggregati aste Serie A)
+const LISTONE = [
+{r:"A",t:"Roma",n:"Donyell Malen",p:58},
+{r:"A",t:"Inter",n:"Lautaro Martinez",p:54},
+{r:"A",t:"Napoli",n:"Rasmus Hojlund",p:46},
+{r:"A",t:"Inter",n:"Marcus Thuram",p:46},
+{r:"A",t:"Milan",n:"Goncalo Ramos",p:46},
+{r:"A",t:"Juventus",n:"Randal Kolo Muani",p:43},
+{r:"C",t:"Como",n:"Nico Paz",p:42},
+{r:"A",t:"Fiorentina",n:"Moise Kean",p:41},
+{r:"C",t:"Inter",n:"Hakan Calhanoglu",p:38},
+{r:"C",t:"Napoli",n:"Scott Mctominay",p:38},
+{r:"A",t:"Milan",n:"Christian Pulisic",p:37},
+{r:"A",t:"Como",n:"Tasos Douvikas",p:37},
+{r:"A",t:"Juventus",n:"Kenan Yildiz",p:35},
+{r:"A",t:"Bologna",n:"Riccardo Orsolini",p:34},
+{r:"A",t:"Atalanta",n:"Gianluca Scamacca",p:34},
+{r:"C",t:"Milan",n:"Adrien Rabiot",p:32},
+{r:"A",t:"Atalanta",n:"Nikola Krstovic",p:32},
+{r:"A",t:"Udinese",n:"Keinan Davis",p:32},
+{r:"C",t:"Napoli",n:"Kevin De Bruyne",p:31},
+{r:"C",t:"Como",n:"Martin Baturina",p:31},
+{r:"A",t:"Sassuolo",n:"Domenico Berardi",p:30},
+{r:"C",t:"Roma",n:"Paulo Dybala",p:30},
+{r:"C",t:"Inter",n:"Federico Dimarco",p:30},
+{r:"A",t:"Inter",n:"Francesco Pio Esposito",p:29},
+{r:"A",t:"Torino",n:"Giovanni Simeone",p:28},
+{r:"C",t:"Udinese",n:"Nicolo Zaniolo",p:28},
+{r:"C",t:"Atalanta",n:"Charles De Ketelaere",p:28},
+{r:"C",t:"Lazio",n:"Mattia Zaccagni",p:27},
+{r:"A",t:"Sassuolo",n:"Armand Lauriente",p:27},
+{r:"A",t:"Roma",n:"Santiago Castro",p:27},
+{r:"C",t:"Inter",n:"Nicolo Barella",p:26},
+{r:"A",t:"Lazio",n:"Andrea Pinamonti",p:26},
+{r:"A",t:"Como",n:"Lucas Da Cunha",p:26},
+{r:"A",t:"Atalanta",n:"Giacomo Raspadori",p:25},
+{r:"A",t:"Fiorentina",n:"Albert Gudmundsson",p:24},
+{r:"D",t:"Juventus",n:"Gleison Bremer",p:24},
+{r:"C",t:"Juventus",n:"Weston Mckennie",p:24},
+{r:"C",t:"Torino",n:"Nikola Vlasic",p:24},
+{r:"A",t:"Roma",n:"Matias Soule",p:23},
+{r:"A",t:"Bologna",n:"Artem Dovbyk",p:23},
+{r:"C",t:"Fiorentina",n:"Arthur Atta",p:23},
+{r:"A",t:"Milan",n:"Christopher Nkunku",p:23},
+{r:"C",t:"Fiorentina",n:"Franco Mastantuono",p:23},
+{r:"C",t:"Roma",n:"Rodrigo Mora",p:23},
+{r:"P",t:"Roma",n:"Mile Svilar",p:22},
+{r:"A",t:"Cagliari",n:"Sebastiano Esposito",p:22},
+{r:"A",t:"Juventus",n:"Francisco Conceicao",p:22},
+{r:"C",t:"Milan",n:"Luka Modric",p:21},
+{r:"D",t:"Inter",n:"Alessandro Bastoni",p:21},
+{r:"D",t:"Inter",n:"Manuel Akanji",p:21},
+{r:"C",t:"Roma",n:"Nahuel Molina",p:21},
+{r:"C",t:"Atalanta",n:"Ederson",p:21},
+{r:"A",t:"Como",n:"Assane Diao",p:21},
+{r:"A",t:"Como",n:"Jesus Rodriguez",p:21},
+{r:"C",t:"Roma",n:"Wesley",p:21},
+{r:"A",t:"Bologna",n:"Jonathan Rowe",p:21},
+{r:"P",t:"Milan",n:"Mike Maignan",p:20},
+{r:"P",t:"Inter",n:"Josep Martinez",p:20},
+{r:"P",t:"Atalanta",n:"Marco Carnesecchi",p:20},
+{r:"C",t:"Inter",n:"Piotr Zielinski",p:20},
+{r:"A",t:"Napoli",n:"Matteo Politano",p:20},
+{r:"C",t:"Roma",n:"Lorenzo Pellegrini",p:20},
+{r:"D",t:"Roma",n:"Gianluca Mancini",p:20},
+{r:"A",t:"Genoa",n:"Lorenzo Colombo",p:20},
+{r:"D",t:"Inter",n:"Yann Aurel Bisseck",p:20},
+{r:"D",t:"Milan",n:"Strahinja Pavlovic",p:20},
+{r:"C",t:"Roma",n:"Manu Kone",p:20},
+{r:"C",t:"Lazio",n:"Kenneth Taylor",p:20},
+{r:"P",t:"Juventus",n:"Guglielmo Vicario",p:19},
+{r:"P",t:"Como",n:"Jean Butez",p:19},
+{r:"D",t:"Napoli",n:"Giovanni Di Lorenzo",p:19},
+{r:"D",t:"Napoli",n:"Amir Rrahmani",p:19},
+{r:"C",t:"Atalanta",n:"Lazar Samardzic",p:19},
+{r:"C",t:"Napoli",n:"André-Frank Anguissa",p:19},
+{r:"D",t:"Juventus",n:"Pierre Kalulu",p:18},
+{r:"D",t:"Roma",n:"Evan Ndicka",p:18},
+{r:"C",t:"Inter",n:"Djed Spence",p:18},
+{r:"C",t:"Juventus",n:"Khephren Thuram",p:18},
+{r:"A",t:"Torino",n:"Che Adams",p:18},
+{r:"D",t:"Udinese",n:"Oumar Solet",p:18},
+{r:"A",t:"Juventus",n:"Jonathan David",p:18},
+{r:"D",t:"Inter",n:"John Stones",p:17},
+{r:"C",t:"Milan",n:"Alexis Saelemaekers",p:17},
+{r:"C",t:"Genoa",n:"Tommaso Baldanzi",p:17},
+{r:"C",t:"Torino",n:"Cesare Casadei",p:17},
+{r:"C",t:"Sassuolo",n:"Kristian Thorstvedt",p:17},
+{r:"C",t:"Como",n:"Maximo Perrone",p:17},
+{r:"P",t:"Napoli",n:"Alex Meret",p:16},
+{r:"A",t:"Torino",n:"Duvan Zapata",p:16},
+{r:"C",t:"Atalanta",n:"Mario Pasalic",p:16},
+{r:"A",t:"Bologna",n:"Roberto Piccoli",p:16},
+{r:"D",t:"Atalanta",n:"Giorgio Scalvini",p:16},
+{r:"A",t:"Genoa",n:"Vitinha",p:16},
+{r:"C",t:"Udinese",n:"Jurgen Ekkelenkamp",p:16},
+{r:"C",t:"Inter",n:"Petar Sucic",p:16},
+{r:"C",t:"Fiorentina",n:"Rolando Mandragora",p:15},
+{r:"A",t:"Bologna",n:"Jens Odgaard",p:15},
+{r:"C",t:"Fiorentina",n:"Nicolo Fagioli",p:15},
+{r:"C",t:"Juventus",n:"Andrea Cambiaso",p:15},
+{r:"D",t:"Genoa",n:"Leo Ostigard",p:15},
+{r:"D",t:"Milan",n:"Mario Gila",p:15},
+{r:"A",t:"Lazio",n:"Gustav Isaksen",p:15},
+{r:"A",t:"Inter",n:"Ange-yoan Bonny",p:15},
+{r:"C",t:"Venezia",n:"John Yeboah",p:15},
+{r:"A",t:"Lazio",n:"Petar Ratkov",p:15},
+{r:"P",t:"Bologna",n:"Lukasz Skorupski",p:14},
+{r:"P",t:"Fiorentina",n:"David De Gea",p:14},
+{r:"C",t:"Roma",n:"Bryan Cristante",p:14},
+{r:"C",t:"Bologna",n:"Federico Bernardeschi",p:14},
+{r:"C",t:"Juventus",n:"Manuel Locatelli",p:14},
+{r:"C",t:"Lazio",n:"Davide Frattesi",p:14},
+{r:"C",t:"Bologna",n:"Lewis Ferguson",p:14},
+{r:"A",t:"Fiorentina",n:"Mateo Pellegrino",p:14},
+{r:"A",t:"Napoli",n:"David Campos Neres",p:14},
+{r:"P",t:"Lecce",n:"Wladimiro Falcone",p:13},
+{r:"P",t:"Cagliari",n:"Elia Caprile",p:13},
+{r:"D",t:"Atalanta",n:"Davide Zappacosta",p:13},
+{r:"A",t:"Juventus",n:"Jeremie Boga",p:13},
+{r:"D",t:"Genoa",n:"Johan Vasquez",p:13},
+{r:"C",t:"Fiorentina",n:"Dodo",p:13},
+{r:"D",t:"Atalanta",n:"Isak Hien",p:13},
+{r:"D",t:"Roma",n:"Mario Hermoso",p:13},
+{r:"D",t:"Como",n:"Trevoh Chalobah",p:13},
+{r:"P",t:"Udinese",n:"Maduka Okoye",p:12},
+{r:"P",t:"Juventus",n:"Michele Di Gregorio",p:12},
+{r:"C",t:"Napoli",n:"Leonardo Spinazzola",p:12},
+{r:"D",t:"Napoli",n:"Alessandro Buongiorno",p:12},
+{r:"D",t:"Milan",n:"Matteo Gabbia",p:12},
+{r:"A",t:"Inter",n:"Henrikh Mkhitaryan",p:12},
+{r:"C",t:"Atalanta",n:"Nicola Zalewski",p:12},
+{r:"C",t:"Torino",n:"Gaetano Pio Oristanio",p:12},
+{r:"C",t:"Parma",n:"Emanuele Valeri",p:12},
+{r:"C",t:"Milan",n:"Davide Bartesaghi",p:12},
+{r:"A",t:"Milan",n:"Samuel Chukwueze",p:12},
+{r:"A",t:"Lazio",n:"Tijjani Noslin",p:12},
+{r:"D",t:"Bologna",n:"Juan Miranda",p:12},
+{r:"A",t:"Atalanta",n:"Kamaldeen Sulemana",p:12},
+{r:"D",t:"Lazio",n:"Danilho Doekhi",p:12},
+{r:"P",t:"Lazio",n:"Christos Mandas",p:11},
+{r:"P",t:"Genoa",n:"Justin Bijlow",p:11},
+{r:"D",t:"Cagliari",n:"Yerry Mina",p:11},
+{r:"C",t:"Sassuolo",n:"Nemanja Matic",p:11},
+{r:"C",t:"Bologna",n:"Tommaso Pobega",p:11},
+{r:"D",t:"Fiorentina",n:"Radu Dragusin",p:11},
+{r:"D",t:"Juventus",n:"Jhon Lucumi",p:11},
+{r:"A",t:"Milan",n:"Santiago Gimenez",p:11},
+{r:"A",t:"Juventus",n:"Edon Zhegrova",p:11},
+{r:"D",t:"Lazio",n:"Alessio Romagnoli",p:10},
+{r:"C",t:"Roma",n:"Marten De Roon",p:10},
+{r:"D",t:"Lazio",n:"Adam Marusic",p:10},
+{r:"C",t:"Genoa",n:"Hamed Junior Traore",p:10},
+{r:"C",t:"Lazio",n:"Nicolo Rovella",p:10},
+{r:"C",t:"Cagliari",n:"Daniel Maldini",p:10},
+{r:"C",t:"Udinese",n:"Mergim Vojvoda",p:10},
+{r:"D",t:"Milan",n:"Fikayo Tomori",p:10},
+{r:"C",t:"Juventus",n:"Teun Koopmeiners",p:10},
+{r:"C",t:"Inter",n:"Carlos Augusto",p:10},
+{r:"D",t:"Juventus",n:"Zeki Celik",p:10},
+{r:"A",t:"Napoli",n:"Lorenzo Lucca",p:10},
+{r:"C",t:"Milan",n:"Youssouf Fofana",p:10},
+{r:"P",t:"Venezia",n:"Filip Stankovic",p:9},
+{r:"A",t:"Como",n:"Alvaro Morata",p:9},
+{r:"D",t:"Atalanta",n:"Raoul Bellanova",p:9},
+{r:"A",t:"Monza",n:"Dany Mota",p:9},
+{r:"C",t:"Milan",n:"Ruben Loftus-Cheek",p:9},
+{r:"D",t:"Inter",n:"Benjamin Pavard",p:9},
+{r:"D",t:"Lecce",n:"Antonino Gallo",p:9},
+{r:"A",t:"Fiorentina",n:"M'bala Nzola",p:9},
+{r:"D",t:"Bologna",n:"Emil Holm",p:9},
+{r:"C",t:"Bologna",n:"Nikola Moro",p:9},
+{r:"D",t:"Napoli",n:"Sam Beukema",p:9},
+{r:"D",t:"Lazio",n:"Nuno Tavares",p:9},
+{r:"C",t:"Lazio",n:"Fisayo Dele-bashiru",p:9},
+{r:"D",t:"Roma",n:"Devyne Rensch",p:9},
+{r:"A",t:"Inter",n:"Luis Henrique De Lima",p:9},
+{r:"C",t:"Udinese",n:"Jakub Piotrowski",p:9},
+{r:"C",t:"Lazio",n:"Danilo Cataldi",p:8},
+{r:"A",t:"Frosinone",n:"Alessio Zerbin",p:8},
+{r:"C",t:"Venezia",n:"Simon Sohm",p:8},
+{r:"C",t:"Fiorentina",n:"Giovanni Fabbian",p:8},
+{r:"D",t:"Napoli",n:"Mathias Olivera",p:8},
+{r:"A",t:"Napoli",n:"Walid Cheddira",p:8},
+{r:"A",t:"Milan",n:"Francesco Camarda",p:8},
+{r:"A",t:"Sassuolo",n:"Benjamin Dominguez",p:8},
+{r:"P",t:"Monza",n:"Demba Thiam",p:7},
+{r:"P",t:"Napoli",n:"Vanja Milinkovic",p:7},
+{r:"C",t:"Napoli",n:"Michael Folorunsho",p:7},
+{r:"A",t:"Fiorentina",n:"Riccardo Sottil",p:7},
+{r:"D",t:"Fiorentina",n:"Luca Ranieri",p:7},
+{r:"D",t:"Cagliari",n:"Gabriele Zappa",p:7},
+{r:"C",t:"Fiorentina",n:"Marco Brescianini",p:7},
+{r:"C",t:"Milan",n:"Samuele Ricci",p:7},
+{r:"A",t:"Juventus",n:"Nicolas Gonzalez",p:7},
+{r:"C",t:"Juventus",n:"Fabio Miretti",p:7},
+{r:"C",t:"Milan",n:"Warren Bondo",p:7},
+{r:"A",t:"Napoli",n:"Cyril Ngonge",p:7},
+{r:"C",t:"Juventus",n:"Douglas Luiz",p:7},
+{r:"A",t:"Cagliari",n:"Alieu Fadera",p:7},
+{r:"D",t:"Atalanta",n:"Odilon Kossounou",p:7},
+{r:"C",t:"Napoli",n:"Billy Gilmour",p:7},
+{r:"A",t:"Napoli",n:"Noa Lang",p:7},
+{r:"C",t:"Roma",n:"Neil El Aynaoui",p:7},
+{r:"D",t:"Atalanta",n:"Sead Kolasinac",p:6},
+{r:"C",t:"Como",n:"Luca Mazzitelli",p:6},
+{r:"D",t:"Milan",n:"Filippo Terracciano",p:6},
+{r:"A",t:"Genoa",n:"Junior Messias",p:6},
+{r:"C",t:"Inter",n:"Kristjan Asllani",p:6},
+{r:"C",t:"Lecce",n:"Youssef Maleh",p:6},
+{r:"D",t:"Juventus",n:"Federico Gatti",p:6},
+{r:"C",t:"Udinese",n:"Sandi Lovric",p:6},
+{r:"C",t:"Inter",n:"Aleksandar Stankovic",p:6},
+{r:"A",t:"Monza",n:"Keita Balde",p:6},
+{r:"P",t:"Torino",n:"Alberto Paleari",p:5},
+{r:"C",t:"Venezia",n:"Alfred Duncan",p:5},
+{r:"C",t:"Cagliari",n:"Alessandro Deiola",p:5},
+{r:"D",t:"Lazio",n:"Luca Pellegrini",p:5},
+{r:"D",t:"Lazio",n:"Manuel Lazzari",p:5},
+{r:"C",t:"Sassuolo",n:"Daniel Boloca",p:5},
+{r:"C",t:"Udinese",n:"Alessandro Zanoli",p:5},
+{r:"C",t:"Milan",n:"Yunus Musah",p:5},
+{r:"A",t:"Bologna",n:"Jesper Karlsson",p:5},
+{r:"C",t:"Milan",n:"Pervis Estupinan",p:5},
+{r:"A",t:"Torino",n:"Zakaria Aboukhlal",p:5},
+{r:"A",t:"Udinese",n:"Adam Buksa",p:5},
+{r:"C",t:"Torino",n:"Cristiano Biraghi",p:4},
+{r:"D",t:"Lazio",n:"Patric",p:4},
+{r:"C",t:"Genoa",n:"Stefano Sabelli",p:4},
+{r:"A",t:"Juventus",n:"Arek Milik",p:4},
+{r:"D",t:"Bologna",n:"Nicolo Casale",p:4},
+{r:"C",t:"Lazio",n:"Romano Floriani Mussolini",p:4},
+{r:"C",t:"Juventus",n:"Juan Cabal",p:4},
+{r:"P",t:"Inter",n:"Ivan Provedel",p:3},
+{r:"D",t:"Como",n:"Edoardo Goldaniga",p:3},
+{r:"P",t:"Milan",n:"Pietro Terracciano",p:2},
+{r:"P",t:"Venezia",n:"Lorenzo Montipo",p:2},
+{r:"D",t:"Bologna",n:"Lorenzo De Silvestri",p:2},
+{r:"D",t:"Juventus",n:"Daniele Rugani",p:2},
+{r:"D",t:"Monza",n:"Valentin Antov",p:2},
+{r:"P",t:"Udinese",n:"Daniele Padelli",p:1},
+{r:"P",t:"Atalanta",n:"Marco Sportiello",p:1},
+{r:"P",t:"Como",n:"Emil Audero",p:1},
+{r:"P",t:"Fiorentina",n:"Luca Lezzerini",p:1},
+{r:"P",t:"Cagliari",n:"Boris Radunovic",p:1},
+{r:"P",t:"Inter",n:"Raffaele Di Gennaro",p:1},
+{r:"P",t:"Roma",n:"Pierluigi Gollini",p:1},
+{r:"P",t:"Sassuolo",n:"Stefano Turati",p:1},
+{r:"P",t:"Torino",n:"Franco Israel",p:1},
+{r:"P",t:"Roma",n:"Devis Vasquez",p:1},
+{r:"P",t:"Fiorentina",n:"Oliver Christensen",p:1},
+{r:"P",t:"Juventus",n:"Kamil Grabara",p:1},
+];
+
+const emptyCalcRow = () => ({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, voto: "", gol: 0, assist: 0, amm: false, esp: false, au: false, rigS: false, rigP: false });
+
+function rowFantavoto(r) {
+  const voto = parseFloat(r.voto);
+  if (isNaN(voto)) return 0;
+  let v = voto;
+  v += r.gol * 3;
+  v += r.assist * 1;
+  if (r.amm) v -= 0.5;
+  if (r.esp) v -= 1;
+  if (r.au) v -= 2;
+  if (r.rigS) v -= 3;
+  if (r.rigP) v += 3;
+  return v;
+}
+
+const BUDGET = 500;
+const LEAGUE_NAME = "FANTANON";
+const PICKS_KEY = "picks-2026";
+const MATCHES_KEY = "matches-2026";
+
+const STORICO = [
+  { manager: "Maggio", note: "Un solo attaccante-totem (Lautaro 180, 36% del budget), resto economico." },
+  { manager: "Baldo", note: "VINCITORE 2025. Nico Paz riconfermato a 20cr gli ha liberato budget per Thuram a 183." },
+  { manager: "Fava", note: "Nessun mega-acquisto: spesa spalmata (Colombo 100, Zaccagni 47, Guddmusson 60)." },
+  { manager: "Cortese", note: "Il più aggressivo: David 146 + Hojlund 100 = 49% del budget in due nomi." },
+  { manager: "Zorzi", note: "Un big offensivo (Dybala 91) circondato da acquisti medi." },
+  { manager: "Nicoletti", note: "Manager 'da difesa': 75cr sui difensori, il più alto della lega." },
+  { manager: "Trento", note: "Doppio attaccante bilanciato: Orsolini 80 + Soulé 80." },
+  { manager: "One", note: "Vlahovic 100 + Pulisic 85 = 37% del budget in due attaccanti." },
+  { manager: "Siro (tu)", note: "Attacco spalmato su tre nomi invece di uno, difesa di qualità." },
+  { manager: "Tardo", note: "Investe più di tutti a centrocampo: 190cr, quasi il 38% del budget." },
+];
+
+function budgetColor(remaining) {
+  if (remaining <= 30) return "text-red-400 border-red-500/50 shadow-[0_0_10px_rgba(248,113,113,0.25)]";
+  if (remaining <= 100) return "text-amber-300 border-amber-400/50 shadow-[0_0_10px_rgba(251,191,36,0.25)]";
+  return "text-emerald-300 border-emerald-400/40 shadow-[0_0_10px_rgba(52,211,153,0.2)]";
+}
+
+function App() {
+  const [picks, setPicks] = useState([]);
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [tab, setTab] = useState("home");
+  const [expanded, setExpanded] = useState(null);
+  const [listQuery, setListQuery] = useState("");
+  const [listRole, setListRole] = useState("TUTTI");
+
+  const [form, setForm] = useState({ team: TEAMS[8].id, role: "A", player: "", price: "" });
+  const [playerFocused, setPlayerFocused] = useState(false);
+  const [matchForm, setMatchForm] = useState({ giornata: "1", teamA: TEAMS[0].id, scoreA: "", teamB: TEAMS[1].id, scoreB: "" });
+  const [calcSide, setCalcSide] = useState(null); // 'A' | 'B' | null
+  const [calcRows, setCalcRows] = useState([emptyCalcRow()]);
+
+  const load = useCallback(() => {}, []);
+
+  useEffect(() => {
+    const unsubPicks = db.collection("fantanon").doc("picks").onSnapshot(
+      (doc) => {
+        setPicks(doc.exists ? (doc.data().items || []) : []);
+        setLoading(false);
+        setError(null);
+      },
+      () => { setLoading(false); setError("Connessione al database non riuscita."); }
+    );
+    const unsubMatches = db.collection("fantanon").doc("matches").onSnapshot(
+      (doc) => setMatches(doc.exists ? (doc.data().items || []) : []),
+      () => {}
+    );
+    return () => { unsubPicks(); unsubMatches(); };
+  }, []);
+
+  const persistPicks = async (next) => {
+    setSaving(true);
+    try {
+      await db.collection("fantanon").doc("picks").set({ items: next });
+      setError(null);
+    } catch (e) {
+      setError("Salvataggio non riuscito — riprova.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const persistMatches = async (next) => {
+    setSaving(true);
+    try {
+      await db.collection("fantanon").doc("matches").set({ items: next });
+      setError(null);
+    } catch (e) {
+      setError("Salvataggio non riuscito — riprova.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addPick = async (e) => {
+    e.preventDefault();
+    const price = parseInt(form.price, 10);
+    if (!form.player.trim() || isNaN(price) || price < 0) return;
+    const entry = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      team: form.team,
+      role: form.role,
+      player: form.player.trim(),
+      price,
+    };
+    await persistPicks([...picks, entry]);
+    setForm((f) => ({ ...f, player: "", price: "" }));
+  };
+
+  const removePick = async (id) => {
+    await persistPicks(picks.filter((p) => p.id !== id));
+  };
+
+  const addMatch = async (e) => {
+    e.preventDefault();
+    const scoreA = parseFloat(matchForm.scoreA);
+    const scoreB = parseFloat(matchForm.scoreB);
+    if (matchForm.teamA === matchForm.teamB) return;
+    const entry = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      giornata: matchForm.giornata,
+      teamA: matchForm.teamA,
+      teamB: matchForm.teamB,
+      scoreA: isNaN(scoreA) ? null : scoreA,
+      scoreB: isNaN(scoreB) ? null : scoreB,
+    };
+    await persistMatches([...matches, entry]);
+    setMatchForm((f) => ({ ...f, scoreA: "", scoreB: "" }));
+  };
+
+  const removeMatch = async (id) => {
+    await persistMatches(matches.filter((m) => m.id !== id));
+  };
+
+  const calcTotal = calcRows.reduce((s, r) => s + rowFantavoto(r), 0);
+
+  const openCalc = (side) => {
+    setCalcRows([emptyCalcRow()]);
+    setCalcSide(side);
+  };
+
+  const updateCalcRow = (id, patch) => {
+    setCalcRows((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  };
+
+  const applyCalc = () => {
+    const total = Math.round(calcTotal * 10) / 10;
+    setMatchForm((f) => ({ ...f, [calcSide === "A" ? "scoreA" : "scoreB"]: String(total) }));
+    setCalcSide(null);
+  };
+
+  const spentByTeam = (teamId) => picks.filter((p) => p.team === teamId).reduce((s, p) => s + p.price, 0);
+  const picksByTeam = (teamId) => picks.filter((p) => p.team === teamId);
+
+  const playerQuery = form.player.trim().toLowerCase();
+  const playerSuggestions =
+    playerQuery.length >= 2
+      ? LISTONE.filter((pl) => pl.n.toLowerCase().includes(playerQuery)).slice(0, 6)
+      : [];
+
+  const pickPlayerSuggestion = (pl) => {
+    setForm((f) => ({ ...f, player: pl.n, role: pl.r }));
+    setPlayerFocused(false);
+  };
+
+  const standings = TEAMS.map((t) => {
+    let g = 0, v = 0, n = 0, p = 0, gf = 0, gs = 0;
+    matches.forEach((m) => {
+      if (m.scoreA === null || m.scoreB === null) return;
+      if (m.teamA === t.id) {
+        g++; gf += m.scoreA; gs += m.scoreB;
+        if (m.scoreA > m.scoreB) v++; else if (m.scoreA === m.scoreB) n++; else p++;
+      } else if (m.teamB === t.id) {
+        g++; gf += m.scoreB; gs += m.scoreA;
+        if (m.scoreB > m.scoreA) v++; else if (m.scoreA === m.scoreB) n++; else p++;
+      }
+    });
+    return { ...t, g, v, n, p, gf, gs, pt: v * 3 + n };
+  }).sort((a, b) => b.pt - a.pt || (b.gf - b.gs) - (a.gf - a.gs));
+
+  const giornate = [...new Set(matches.map((m) => m.giornata))].sort((a, b) => Number(a) - Number(b));
+
+  return (
+    <div
+      className="min-h-screen bg-gradient-to-b from-[#0f3324] via-[#0b2419] to-[#071811]"
+      style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", color: "#f5f3ea" }}
+    >
+      <header className="sticky top-0 z-10 bg-[#0b2419]/90 backdrop-blur-md border-b border-emerald-800/60 px-4 pt-4 pb-3 flex items-center justify-between">
+        <div>
+          <p className="text-[10px] tracking-[0.35em] text-amber-300 font-bold uppercase drop-shadow-[0_0_6px_rgba(251,191,36,0.35)]">Stagione 2026/27 · condivisa</p>
+          <h1
+            className="text-[32px] leading-none italic bg-gradient-to-r from-amber-200 via-amber-400 to-orange-400 bg-clip-text text-transparent"
+            style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 700, letterSpacing: "0.02em" }}
+          >
+            {LEAGUE_NAME}
+          </h1>
+        </div>
+        <button
+          onClick={load}
+          className="p-2.5 rounded-full border border-amber-400/30 bg-emerald-900/60 text-amber-300 active:scale-95 transition shadow-[0_0_12px_rgba(251,191,36,0.15)]"
+          aria-label="Aggiorna"
+        >
+          <span className={loading ? "animate-spin inline-block" : "inline-block"} style={{fontSize:16}}>⟳</span>
+        </button>
+      </header>
+
+      <nav
+        className="fixed bottom-0 inset-x-0 z-20 bg-[#0b2419]/97 backdrop-blur border-t border-emerald-900 flex px-1"
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 8px)" }}
+      >
+        {[
+          { id: "home", label: "Home", icon: "🏠" },
+          { id: "rose", label: "Rose", icon: "👥" },
+          { id: "listone", label: "Listone", icon: "🔎" },
+          { id: "calendario", label: "Calendario", icon: "📅" },
+          { id: "classifica", label: "Classifica", icon: "🏆" },
+        ].map(({ id, label, icon }) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-bold uppercase tracking-wide transition ${
+              tab === id ? "text-amber-300" : "text-emerald-500/50"
+            }`}
+          >
+            <span className={`flex items-center justify-center w-9 h-7 rounded-full transition ${
+              tab === id ? "bg-gradient-to-b from-amber-400/25 to-amber-500/10 shadow-[0_0_10px_rgba(251,191,36,0.35)]" : ""
+            }`}>
+              <span style={{fontSize:18}}>{icon}</span>
+            </span>
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {tab === "home" && (
+        <main className="px-4 py-4 space-y-3 pb-24">
+          <div className="bg-gradient-to-br from-amber-400/15 via-emerald-900/40 to-emerald-950/60 border border-amber-400/30 rounded-2xl p-4">
+            <p className="text-[10px] tracking-[0.25em] text-amber-300 font-bold uppercase mb-1">Benvenuto in</p>
+            <h2 style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 700, fontStyle: "italic" }} className="text-3xl leading-none bg-gradient-to-r from-amber-200 to-orange-300 bg-clip-text text-transparent mb-2">
+              {LEAGUE_NAME}
+            </h2>
+            <p className="text-xs text-emerald-100/80 leading-relaxed">
+              La app della vostra lega: rose, avversari, risultati e classifica — tutto condiviso, tutto in tempo reale.
+            </p>
+          </div>
+
+          <p className="text-[10px] tracking-[0.25em] text-amber-300/80 font-bold uppercase px-1 pt-1">Cosa vuoi fare?</p>
+
+          {[
+            { id: "rose", icon: "👥", title: "Rose & Asta", desc: "Segna chi prende chi durante l'asta, o consulta le rose di tutti." },
+            { id: "listone", icon: "🔎", title: "Listone", desc: "Quotazioni ufficiali 2026/27 — cerca un giocatore, filtra per ruolo." },
+            { id: "calendario", icon: "📅", title: "Calendario", desc: "Inserisci i risultati di giornata, o calcola il fantavoto con la calcolatrice." },
+            { id: "classifica", icon: "🏆", title: "Classifica", desc: "Si aggiorna da sola in base ai risultati inseriti." },
+          ].map(({ id, icon, title, desc }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className="w-full flex items-center gap-3 bg-gradient-to-b from-emerald-900/50 to-emerald-950/60 border border-emerald-700/50 rounded-2xl p-3.5 text-left active:scale-[0.98] transition shadow-md shadow-black/10"
+            >
+              <span className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400/25 to-amber-500/10 flex items-center justify-center text-amber-300 shrink-0">
+                <span style={{fontSize:20}}>{icon}</span>
+              </span>
+              <span className="min-w-0">
+                <span style={{ color: "#f5f3ea", fontWeight: 800 }} className="block text-base uppercase tracking-wide leading-tight">{title}</span>
+                <span className="block text-[11px] text-emerald-300/70 leading-snug mt-0.5">{desc}</span>
+              </span>
+            </button>
+          ))}
+
+          <p className="text-[10px] tracking-[0.25em] text-amber-300/80 font-bold uppercase px-1 pt-3">Dall'anno scorso</p>
+          <div className="space-y-2">
+            {STORICO.slice(0, 3).map((s) => (
+              <div key={s.manager} className="bg-emerald-950/40 border border-emerald-800/50 rounded-xl p-3">
+                <p className="text-[11px] font-bold text-amber-300 uppercase tracking-wide mb-0.5">{s.manager}</p>
+                <p className="text-[11px] text-emerald-200/80 leading-relaxed">{s.note}</p>
+              </div>
+            ))}
+          </div>
+        </main>
+      )}
+
+      {tab === "rose" && (
+        <main className="px-4 py-4 space-y-4 pb-24">
+          <form
+            onSubmit={addPick}
+            className="bg-gradient-to-b from-emerald-900/50 to-emerald-950/60 border border-emerald-700/50 rounded-2xl p-3.5 space-y-2.5 shadow-lg shadow-black/20"
+          >
+            <p className="text-[10px] tracking-[0.25em] text-amber-300 font-black uppercase">Nuova chiamata</p>
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={form.team}
+                onChange={(e) => setForm((f) => ({ ...f, team: e.target.value }))}
+                className="col-span-2 bg-emerald-900/60 border border-emerald-600/60 rounded-lg px-2 py-2.5 text-sm focus:border-amber-400/60 outline-none"
+              >
+                {TEAMS.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.manager} — {t.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={form.role}
+                onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+                className="bg-emerald-900/60 border border-emerald-600/60 rounded-lg px-2 py-2.5 text-sm focus:border-amber-400/60 outline-none"
+              >
+                {ROLES.map((r) => (
+                  <option key={r.code} value={r.code}>{r.label}</option>
+                ))}
+              </select>
+              <input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                placeholder="Crediti"
+                value={form.price}
+                onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+                className="bg-emerald-900/60 border border-emerald-600/60 rounded-lg px-2 py-2.5 text-sm focus:border-amber-400/60 outline-none"
+              />
+              <div className="col-span-2 relative">
+                <input
+                  type="text"
+                  placeholder="Nome giocatore — inizia a scrivere..."
+                  value={form.player}
+                  onChange={(e) => setForm((f) => ({ ...f, player: e.target.value }))}
+                  onFocus={() => setPlayerFocused(true)}
+                  onBlur={() => setTimeout(() => setPlayerFocused(false), 150)}
+                  autoComplete="off"
+                  className="w-full bg-emerald-900/60 border border-emerald-600/60 rounded-lg px-2 py-2.5 text-sm focus:border-amber-400/60 outline-none"
+                />
+                {playerFocused && playerQuery.length >= 2 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-emerald-950 border border-amber-400/40 rounded-xl overflow-hidden shadow-xl shadow-black/40 max-h-56 overflow-y-auto">
+                    {playerSuggestions.length > 0 ? (
+                      playerSuggestions.map((pl, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => pickPlayerSuggestion(pl)}
+                          className="w-full flex items-center gap-2 px-3 py-2.5 border-b border-emerald-800/60 last:border-b-0 active:bg-emerald-900/60 text-left"
+                        >
+                          <span className={`text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${roleColor(pl.r)}`}>{pl.r}</span>
+                          <span className="min-w-0 flex-1">
+                            <span style={{ color: "#f5f3ea" }} className="block text-sm font-semibold truncate">{pl.n}</span>
+                            <span className="block text-[10px] text-emerald-400/60 truncate">{pl.t}</span>
+                          </span>
+                          <span className="text-sm font-black text-amber-300 shrink-0">{pl.p}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="px-3 py-3 text-xs text-emerald-400/60 italic">
+                        Nessun giocatore trovato nel listone — puoi comunque scrivere il nome a mano.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={saving}
+              className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-r from-amber-300 via-amber-400 to-orange-400 text-emerald-950 font-black uppercase tracking-wide text-xs py-3 rounded-xl active:scale-[0.98] transition disabled:opacity-50 shadow-lg shadow-amber-500/25"
+            >
+              <span style={{fontWeight:900}}>+</span> {saving ? "Salvo..." : "Aggiungi"}
+            </button>
+            {error && <p className="text-red-400 text-xs">{error}</p>}
+          </form>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            {TEAMS.map((t, i) => {
+              const spent = spentByTeam(t.id);
+              const remaining = BUDGET - spent;
+              const roster = picksByTeam(t.id);
+              const isOpen = expanded === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setExpanded(isOpen ? null : t.id)}
+                  style={{ borderTopColor: CREST_HUES[i % CREST_HUES.length], borderTopWidth: 3 }}
+                  className={`text-left bg-gradient-to-b from-emerald-900/50 to-emerald-950/70 border border-emerald-800/60 rounded-2xl p-3 transition shadow-md shadow-black/20 ${
+                    isOpen ? "col-span-2 ring-1 ring-amber-400/40" : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black text-emerald-950 shrink-0 shadow-md"
+                      style={{ backgroundColor: CREST_HUES[i % CREST_HUES.length] }}
+                    >
+                      {initials(t.name)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[9px] tracking-widest text-emerald-300/80 uppercase truncate font-semibold">{t.manager}</p>
+                      <p style={{ color: "#f5f3ea" }} className="text-[11px] font-black uppercase tracking-tight truncate">{t.name}</p>
+                    </div>
+                  </div>
+                  <div className={`font-mono text-[26px] leading-none font-black tabular-nums border rounded-xl px-2 py-1.5 text-center bg-black/20 ${budgetColor(remaining)}`}>
+                    {remaining}
+                  </div>
+                  <p className="text-[9px] text-center text-emerald-400/70 mt-1.5 font-semibold tracking-wide">crediti rimasti · {roster.length} presi</p>
+
+                  {isOpen && (
+                    <div className="mt-3 pt-3 border-t border-emerald-800 space-y-1">
+                      {roster.length === 0 && (
+                        <p className="text-xs text-emerald-500/60 italic">Nessun giocatore ancora.</p>
+                      )}
+                      {roster.map((p) => (
+                        <div key={p.id} className="flex items-center justify-between text-xs bg-emerald-900/40 rounded-lg px-2 py-1.5">
+                          <span className="flex items-center gap-1.5">
+                            <span className={`text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center ${roleColor(p.role)}`}>{p.role}</span>
+                            {p.player}
+                          </span>
+                          <span className="flex items-center gap-2">
+                            <span className="font-mono text-amber-300">{p.price}</span>
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={(e) => { e.stopPropagation(); removePick(p.id); }}
+                              className="text-emerald-500/60 active:text-red-400"
+                            >
+                              <span style={{fontSize:13}}>✕</span>
+                            </span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </main>
+      )}
+
+      {tab === "calendario" && (
+        <main className="px-4 py-4 space-y-4 pb-24">
+          <form onSubmit={addMatch} className="bg-gradient-to-b from-emerald-900/50 to-emerald-950/60 border border-emerald-700/50 rounded-2xl p-3.5 space-y-2.5 shadow-lg shadow-black/20">
+            <p className="text-[10px] tracking-[0.25em] text-amber-300 font-black uppercase">Nuovo risultato</p>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="Giornata (es. 1)"
+              value={matchForm.giornata}
+              onChange={(e) => setMatchForm((f) => ({ ...f, giornata: e.target.value }))}
+              className="w-full bg-emerald-900/60 border border-emerald-600/60 rounded-lg px-2 py-2.5 text-sm focus:border-amber-400/60 outline-none"
+            />
+            <div className="grid grid-cols-5 gap-1.5 items-center">
+              <select
+                value={matchForm.teamA}
+                onChange={(e) => setMatchForm((f) => ({ ...f, teamA: e.target.value }))}
+                className="col-span-2 bg-emerald-900/60 border border-emerald-600/60 rounded-lg px-1.5 py-2 text-[11px]"
+              >
+                {TEAMS.map((t) => <option key={t.id} value={t.id}>{t.manager}</option>)}
+              </select>
+              <input
+                type="number" inputMode="decimal" placeholder="—"
+                value={matchForm.scoreA}
+                onChange={(e) => setMatchForm((f) => ({ ...f, scoreA: e.target.value }))}
+                className="bg-emerald-900/60 border border-emerald-600/60 rounded-lg px-1 py-2 text-sm text-center font-mono font-bold"
+              />
+              <input
+                type="number" inputMode="decimal" placeholder="—"
+                value={matchForm.scoreB}
+                onChange={(e) => setMatchForm((f) => ({ ...f, scoreB: e.target.value }))}
+                className="bg-emerald-900/60 border border-emerald-600/60 rounded-lg px-1 py-2 text-sm text-center font-mono font-bold"
+              />
+              <select
+                value={matchForm.teamB}
+                onChange={(e) => setMatchForm((f) => ({ ...f, teamB: e.target.value }))}
+                className="col-span-2 bg-emerald-900/60 border border-emerald-600/60 rounded-lg px-1.5 py-2 text-[11px]"
+              >
+                {TEAMS.map((t) => <option key={t.id} value={t.id}>{t.manager}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button type="button" onClick={() => openCalc("A")} className="text-[10px] font-black uppercase tracking-wide text-amber-300 bg-amber-400/10 border border-amber-400/40 rounded-lg py-2 active:scale-[0.98] transition">
+                🧮 Calcola voto squadra 1
+              </button>
+              <button type="button" onClick={() => openCalc("B")} className="text-[10px] font-black uppercase tracking-wide text-amber-300 bg-amber-400/10 border border-amber-400/40 rounded-lg py-2 active:scale-[0.98] transition">
+                🧮 Calcola voto squadra 2
+              </button>
+            </div>
+            <button
+              type="submit" disabled={saving}
+              className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-r from-amber-300 via-amber-400 to-orange-400 text-emerald-950 font-black uppercase tracking-wide text-xs py-3 rounded-xl active:scale-[0.98] transition disabled:opacity-50 shadow-lg shadow-amber-500/25"
+            >
+              <span style={{fontWeight:900}}>+</span> {saving ? "Salvo..." : "Aggiungi risultato"}
+            </button>
+            {error && <p className="text-red-400 text-xs">{error}</p>}
+          </form>
+
+          {calcSide && (
+            <div className="bg-gradient-to-b from-emerald-950/90 to-black/40 border border-amber-400/50 rounded-2xl p-3.5 space-y-2 shadow-lg shadow-amber-500/10">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] tracking-[0.25em] text-amber-300 font-black uppercase">
+                  Calcolatrice · Squadra {calcSide === "A" ? "1" : "2"}
+                </p>
+                <span role="button" tabIndex={0} onClick={() => setCalcSide(null)} className="text-emerald-500/60 active:text-red-400">
+                  <span style={{fontSize:15}}>✕</span>
+                </span>
+              </div>
+              <p className="text-[10px] text-emerald-400/60 -mt-1">Una riga per titolare: voto, gol, assist, poi i bonus/malus.</p>
+
+              <div className="space-y-1.5 max-h-72 overflow-y-auto pr-0.5">
+                {calcRows.map((r, idx) => (
+                  <div key={r.id} className="bg-emerald-900/40 rounded-lg p-2 space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[9px] text-emerald-500/70 w-4">{idx + 1}</span>
+                      <input
+                        type="number" inputMode="decimal" step="0.5" placeholder="Voto"
+                        value={r.voto}
+                        onChange={(e) => updateCalcRow(r.id, { voto: e.target.value })}
+                        className="w-14 bg-emerald-950/60 border border-emerald-700 rounded px-1.5 py-1 text-xs text-center"
+                      />
+                      <div className="flex items-center gap-1 text-[10px]">
+                        <span className="text-emerald-400/70">Gol</span>
+                        <button type="button" onClick={() => updateCalcRow(r.id, { gol: Math.max(0, r.gol - 1) })} className="w-5 h-5 rounded bg-emerald-800 text-emerald-100">−</button>
+                        <span className="w-3 text-center tabular-nums">{r.gol}</span>
+                        <button type="button" onClick={() => updateCalcRow(r.id, { gol: r.gol + 1 })} className="w-5 h-5 rounded bg-emerald-800 text-emerald-100">+</button>
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px]">
+                        <span className="text-emerald-400/70">Ass</span>
+                        <button type="button" onClick={() => updateCalcRow(r.id, { assist: Math.max(0, r.assist - 1) })} className="w-5 h-5 rounded bg-emerald-800 text-emerald-100">−</button>
+                        <span className="w-3 text-center tabular-nums">{r.assist}</span>
+                        <button type="button" onClick={() => updateCalcRow(r.id, { assist: r.assist + 1 })} className="w-5 h-5 rounded bg-emerald-800 text-emerald-100">+</button>
+                      </div>
+                      <span
+                        role="button" tabIndex={0}
+                        onClick={() => setCalcRows((rows) => rows.filter((x) => x.id !== r.id))}
+                        className="ml-auto text-emerald-600/60 active:text-red-400"
+                      >
+                        <span style={{fontSize:12}}>✕</span>
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {[
+                        ["amm", "Amm. −0.5"], ["esp", "Esp. −1"], ["au", "Autogol −2"],
+                        ["rigS", "Rig. sbagl. −3"], ["rigP", "Rig. parato +3"],
+                      ].map(([key, label]) => (
+                        <button
+                          key={key} type="button"
+                          onClick={() => updateCalcRow(r.id, { [key]: !r[key] })}
+                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border transition ${
+                            r[key] ? "bg-amber-400 text-emerald-950 border-amber-400" : "border-emerald-700 text-emerald-400/70"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setCalcRows((rows) => [...rows, emptyCalcRow()])}
+                className="w-full flex items-center justify-center gap-1 text-[10px] font-bold uppercase text-emerald-300 border border-emerald-700 rounded-lg py-1.5"
+              >
+                <span style={{fontWeight:900}}>+</span> Aggiungi titolare
+              </button>
+
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[10px] text-emerald-400/70 uppercase tracking-wide">Totale fantavoto</span>
+                <span className="font-mono text-xl font-black text-amber-300 tabular-nums">{calcTotal.toFixed(1)}</span>
+              </div>
+              <button
+                type="button"
+                onClick={applyCalc}
+                className="w-full bg-amber-400 text-emerald-950 font-bold uppercase tracking-wide text-xs py-2.5 rounded-lg active:scale-[0.98] transition"
+              >
+                Usa questo punteggio
+              </button>
+            </div>
+          )}
+
+          {giornate.length === 0 && (
+            <p className="text-center text-xs text-emerald-500/60 italic py-6">Nessuna giornata ancora registrata.</p>
+          )}
+          {giornate.map((g) => (
+            <div key={g} className="bg-emerald-950/60 border border-emerald-800 rounded-xl p-3">
+              <p className="text-[10px] tracking-[0.2em] text-amber-400 font-bold uppercase mb-2">Giornata {g}</p>
+              <div className="space-y-1.5">
+                {matches.filter((m) => m.giornata === g).map((m) => {
+                  const tA = TEAMS.find((t) => t.id === m.teamA);
+                  const tB = TEAMS.find((t) => t.id === m.teamB);
+                  const iA = TEAMS.findIndex((t) => t.id === m.teamA);
+                  const iB = TEAMS.findIndex((t) => t.id === m.teamB);
+                  return (
+                    <div key={m.id} className="flex items-center justify-between text-xs bg-emerald-900/40 rounded-lg px-2 py-1.5">
+                      <span className="flex-1 flex items-center justify-end gap-1.5 truncate">
+                        {tA?.manager}
+                        <span className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-black text-emerald-950 shrink-0" style={{ backgroundColor: CREST_HUES[iA % CREST_HUES.length] }}>{initials(tA?.name || "")}</span>
+                      </span>
+                      <span className="font-mono font-bold text-amber-300 px-2 tabular-nums">
+                        {m.scoreA ?? "–"} : {m.scoreB ?? "–"}
+                      </span>
+                      <span className="flex-1 flex items-center gap-1.5 truncate">
+                        <span className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-black text-emerald-950 shrink-0" style={{ backgroundColor: CREST_HUES[iB % CREST_HUES.length] }}>{initials(tB?.name || "")}</span>
+                        {tB?.manager}
+                      </span>
+                      <span
+                        role="button" tabIndex={0}
+                        onClick={() => removeMatch(m.id)}
+                        className="ml-2 text-emerald-500/60 active:text-red-400"
+                      >
+                        <span style={{fontSize:13}}>✕</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </main>
+      )}
+
+      {tab === "classifica" && (
+        <main className="px-4 py-4 pb-24">
+          <div className="bg-gradient-to-b from-emerald-900/40 to-emerald-950/70 border border-emerald-700/50 rounded-2xl overflow-hidden shadow-lg shadow-black/20">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-gradient-to-r from-amber-500/15 via-amber-400/10 to-transparent text-amber-300 uppercase text-[9px] tracking-wider">
+                  <th className="text-left py-2.5 pl-3 font-black">Squadra</th>
+                  <th className="py-2.5 font-black">G</th>
+                  <th className="py-2.5 font-black">V</th>
+                  <th className="py-2.5 font-black">N</th>
+                  <th className="py-2.5 font-black">P</th>
+                  <th className="py-2.5 pr-3 font-black">Pt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {standings.map((s, i) => {
+                  const teamIdx = TEAMS.findIndex((t) => t.id === s.id);
+                  return (
+                    <tr key={s.id} className={`border-t border-emerald-800/60 ${i === 0 ? "bg-gradient-to-r from-amber-400/15 to-transparent" : ""}`}>
+                      <td className="py-2.5 pl-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-4 text-center font-mono text-emerald-400/80 shrink-0">
+                            {i === 0 ? <span className="text-amber-400 inline-block" style={{filter:"drop-shadow(0 0 4px rgba(251,191,36,0.6))"}}>🏆</span> : i + 1}
+                          </span>
+                          <div
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black text-emerald-950 shrink-0 shadow"
+                            style={{ backgroundColor: CREST_HUES[teamIdx % CREST_HUES.length] }}
+                          >
+                            {initials(s.name)}
+                          </div>
+                          <div className="min-w-0">
+                            <p style={{ color: "#f5f3ea" }} className="font-bold truncate max-w-[100px]">{s.manager}</p>
+                            <p className="text-[9px] text-emerald-400/60 truncate max-w-[100px]">{s.name}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="text-center tabular-nums">{s.g}</td>
+                      <td className="text-center tabular-nums">{s.v}</td>
+                      <td className="text-center tabular-nums">{s.n}</td>
+                      <td className="text-center tabular-nums">{s.p}</td>
+                      <td className="text-center font-mono font-black text-amber-300 pr-3 tabular-nums text-sm">{s.pt}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[10px] text-emerald-500/60 mt-2 px-1">Calcolata in automatico dai risultati inseriti in Calendario.</p>
+        </main>
+      )}
+
+      {tab === "listone" && (
+        <main className="px-4 py-4 space-y-3 pb-24">
+          <div className="sticky top-[70px] z-[5] bg-gradient-to-b from-emerald-900/60 to-emerald-950/60 border border-emerald-700/50 rounded-2xl p-3 space-y-2 backdrop-blur-md shadow-lg shadow-black/20">
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400/60" style={{fontSize:14}}>🔎</span>
+              <input
+                type="text"
+                placeholder="Cerca giocatore o squadra..."
+                value={listQuery}
+                onChange={(e) => setListQuery(e.target.value)}
+                className="w-full bg-emerald-900/60 border border-emerald-600/60 rounded-lg pl-8 pr-2 py-2.5 text-sm focus:border-amber-400/60 outline-none"
+              />
+            </div>
+            <div className="flex gap-1.5">
+              {["TUTTI", "P", "D", "C", "A"].map((rc) => (
+                <button
+                  key={rc}
+                  onClick={() => setListRole(rc)}
+                  className={`flex-1 text-[10px] font-black uppercase py-1.5 rounded-lg border transition ${
+                    listRole === rc
+                      ? "bg-gradient-to-r from-amber-300 to-orange-400 text-emerald-950 border-transparent"
+                      : "border-emerald-700 text-emerald-400/70"
+                  }`}
+                >
+                  {rc === "TUTTI" ? "Tutti" : ROLES.find((r) => r.code === rc)?.label.slice(0, 4)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            {LISTONE
+              .filter((pl) => listRole === "TUTTI" || pl.r === listRole)
+              .filter((pl) => {
+                const q = listQuery.trim().toLowerCase();
+                if (!q) return true;
+                return pl.n.toLowerCase().includes(q) || pl.t.toLowerCase().includes(q);
+              })
+              .map((pl, idx) => (
+                <div key={idx} className="flex items-center gap-2.5 bg-emerald-950/50 border border-emerald-800/50 rounded-xl px-3 py-2.5">
+                  <span className={`text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${roleColor(pl.r)}`}>{pl.r}</span>
+                  <div className="min-w-0 flex-1">
+                    <p style={{ color: "#f5f3ea" }} className="text-sm font-semibold truncate">{pl.n}</p>
+                    <p className="text-[10px] text-emerald-400/60 truncate">{pl.t}</p>
+                  </div>
+                  <span className="text-lg font-black text-amber-300 tabular-nums shrink-0">
+                    {pl.p}
+                  </span>
+                </div>
+              ))}
+            {LISTONE.filter((pl) => listRole === "TUTTI" || pl.r === listRole)
+              .filter((pl) => !listQuery.trim() || pl.n.toLowerCase().includes(listQuery.trim().toLowerCase()) || pl.t.toLowerCase().includes(listQuery.trim().toLowerCase()))
+              .length === 0 && (
+              <p className="text-center text-xs text-emerald-500/60 italic py-8">Nessun giocatore trovato.</p>
+            )}
+          </div>
+
+          <p className="text-[10px] text-emerald-500/60 px-1 pt-1">Quotazioni ufficiali 2026/27 — {LISTONE.length} giocatori principali. I ruoli minori scendono sotto i 10cr e non sono elencati singolarmente.</p>
+
+          <p className="text-[10px] tracking-[0.25em] text-amber-300/80 font-black uppercase mb-1 px-1 pt-4">Storico 2025 — tutti i manager</p>
+          <div className="space-y-2">
+            {STORICO.map((s) => (
+              <div key={s.manager} className="bg-gradient-to-b from-emerald-900/40 to-emerald-950/60 border border-emerald-700/50 rounded-2xl p-3.5 shadow-md shadow-black/10">
+                <p className="text-xs font-black text-amber-300 uppercase tracking-wide mb-1">{s.manager}</p>
+                <p className="text-xs text-emerald-100/90 leading-relaxed">{s.note}</p>
+              </div>
+            ))}
+          </div>
+        </main>
+      )}
+    </div>
+  );
+}
+
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
